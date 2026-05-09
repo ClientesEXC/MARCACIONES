@@ -1,0 +1,1027 @@
+# PROMPT MAESTRO — SISTEMA DE CONTROL DE ASISTENCIA LABORAL
+### Para ejecutar con Claude Code desde cero hasta producción
+
+---
+
+## ROL Y CONTEXTO
+
+Eres un ingeniero senior full-stack. Tu tarea es construir un sistema profesional completo de control de asistencia y marcación laboral para una empresa de prevención de riesgos laborales. El sistema debe funcionar de principio a fin: base de datos real, autenticación, lógica de negocio, interfaz de usuario responsiva y minimalista.
+
+**No hagas una demo. No hagas mocks. Construye el sistema completo y funcional.**
+
+---
+
+## STACK TECNOLÓGICO — NO CAMBIAR
+
+```
+Frontend + Backend:  Next.js 14 (App Router, TypeScript)
+Base de datos:       Supabase (PostgreSQL gestionado)
+ORM:                 Prisma 5 (conectado a Supabase via connection pooler)
+Autenticación:       NextAuth.js v5 (Auth.js) con credentials provider — NO Supabase Auth
+Validación:          Zod
+UI:                  Tailwind CSS + shadcn/ui
+Iconos:              Lucide React
+Gráficas (nóminas):  Recharts
+PDF Export:          @react-pdf/renderer
+Despliegue:          Vercel (app) + Supabase (base de datos)
+```
+
+---
+
+## DISEÑO — DIRECTRICES ABSOLUTAS
+
+- **Estilo:** Minimalista, profesional, corporativo. Fondo blanco/gris muy claro. Sin gradientes vistosos.
+- **Tipografía:** Geist Sans (viene con Next.js 14 por defecto).
+- **Color primario:** `#1a1a2e` (azul marino casi negro). Acento: `#4361ee` (azul eléctrico sobrio).
+- **Paleta neutral:** grises de Tailwind (`slate-50` a `slate-900`).
+- **Sidebar fija** en desktop, drawer en mobile.
+- **Fully responsive:** Mobile first. Todas las vistas deben funcionar en 375px de ancho.
+- **Sin animaciones innecesarias.** Solo transiciones sutiles en hover (`transition-colors`).
+- **Tablas con paginación** en todas las listas.
+- Sin emojis en la UI profesional. Usar solo iconos de Lucide.
+
+---
+
+## ESTRUCTURA DEL PROYECTO
+
+```
+attendance-system/
+├── .env.local                  # Variables de entorno (NO subir a git)
+├── .env.example                # Plantilla pública sin valores reales
+├── prisma/
+│   ├── schema.prisma
+│   └── seed.ts                 # Datos iniciales (admin + empleados demo)
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx            # Redirige a /dashboard o /login
+│   │   ├── (auth)/
+│   │   │   └── login/
+│   │   │       └── page.tsx
+│   │   ├── (dashboard)/
+│   │   │   ├── layout.tsx      # Sidebar + header compartido
+│   │   │   ├── dashboard/
+│   │   │   │   └── page.tsx
+│   │   │   ├── employees/
+│   │   │   │   ├── page.tsx
+│   │   │   │   ├── new/page.tsx
+│   │   │   │   └── [id]/page.tsx
+│   │   │   ├── attendance/
+│   │   │   │   ├── page.tsx    # Vista admin: todas las marcaciones
+│   │   │   │   └── mark/page.tsx # Vista empleado: marcar entrada/salida
+│   │   │   ├── schedules/
+│   │   │   │   └── page.tsx
+│   │   │   ├── holidays/
+│   │   │   │   └── page.tsx
+│   │   │   ├── permissions/
+│   │   │   │   ├── page.tsx    # Lista de solicitudes
+│   │   │   │   └── new/page.tsx
+│   │   │   ├── vacations/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── new/page.tsx
+│   │   │   ├── payroll/
+│   │   │   │   └── page.tsx    # Vista visual de nóminas
+│   │   │   └── reports/
+│   │   │       └── page.tsx
+│   │   └── api/
+│   │       ├── auth/
+│   │       │   └── [...nextauth]/route.ts
+│   │       ├── employees/
+│   │       │   ├── route.ts
+│   │       │   └── [id]/route.ts
+│   │       ├── attendance/
+│   │       │   ├── route.ts
+│   │       │   ├── mark/route.ts
+│   │       │   └── [id]/route.ts
+│   │       ├── schedules/route.ts
+│   │       ├── holidays/route.ts
+│   │       ├── permissions/
+│   │       │   ├── route.ts
+│   │       │   └── [id]/approve/route.ts
+│   │       ├── vacations/
+│   │       │   ├── route.ts
+│   │       │   └── [id]/approve/route.ts
+│   │       ├── payroll/route.ts
+│   │       └── reports/route.ts
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── Header.tsx
+│   │   │   └── MobileNav.tsx
+│   │   ├── ui/                 # shadcn/ui components
+│   │   ├── employees/
+│   │   ├── attendance/
+│   │   ├── permissions/
+│   │   ├── payroll/
+│   │   └── shared/
+│   │       ├── DataTable.tsx
+│   │       ├── StatusBadge.tsx
+│   │       ├── ConfirmDialog.tsx
+│   │       └── PageHeader.tsx
+│   ├── lib/
+│   │   ├── prisma.ts           # Cliente Prisma singleton
+│   │   ├── auth.ts             # Configuración NextAuth
+│   │   ├── validations/        # Schemas Zod por módulo
+│   │   └── utils/
+│   │       ├── attendance.ts   # Cálculo de horas, tardanzas, etc.
+│   │       ├── payroll.ts      # Cálculo de nómina
+│   │       └── date.ts         # Utilidades de fechas
+│   ├── hooks/
+│   │   ├── useAttendance.ts
+│   │   ├── useEmployees.ts
+│   │   └── usePermissions.ts
+│   └── types/
+│       └── index.ts
+├── auth.ts                     # NextAuth config (raíz del proyecto)
+└── middleware.ts               # Protección de rutas + RBAC
+```
+
+---
+
+## SCHEMA DE BASE DE DATOS (Prisma)
+
+Implementa EXACTAMENTE este schema en `prisma/schema.prisma`:
+
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")       // Supabase connection pooler (puerto 6543) — para queries en runtime
+  directUrl = env("DIRECT_URL")         // Supabase direct connection (puerto 5432) — para migraciones Prisma
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  HOLIDAY
+  ON_LEAVE
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PermissionType {
+  MEDICAL
+  PERSONAL
+  FAMILY
+  OTHER
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model User {
+  id            String    @id @default(cuid())
+  employeeId    String    @unique  // ID visual tipo EMP-001 — generado por admin
+  dni           String    @unique  // DNI/NIE del trabajador — obligatorio, validado formato español
+  name          String
+  email         String    @unique
+  password      String    // bcrypt hash — establecida por el admin al crear el usuario
+  role          Role      @default(EMPLOYEE)
+  department    String?
+  position      String?
+  phone         String?
+  startDate     DateTime  @default(now())
+  isActive      Boolean   @default(true)
+  avatarUrl     String?
+  
+  // Salario base para nómina
+  baseSalary    Float     @default(0)
+  
+  // Días de vacaciones disponibles
+  vacationDays  Int       @default(22)
+
+  schedule      Schedule? @relation(fields: [scheduleId], references: [id])
+  scheduleId    String?
+
+  attendances   Attendance[]
+  permissions   Permission[]
+  vacations     Vacation[]
+  payrolls      Payroll[]
+  
+  // Quién aprobó solicitudes (manager)
+  approvedPermissions Permission[] @relation("ApprovedBy")
+  approvedVacations   Vacation[]   @relation("ApprovedBy")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Schedule {
+  id          String         @id @default(cuid())
+  name        String         // Ej: "Turno General", "Turno Mañana"
+  description String?
+  workDays    WorkDay[]
+  users       User[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model WorkDay {
+  id          String    @id @default(cuid())
+  schedule    Schedule  @relation(fields: [scheduleId], references: [id])
+  scheduleId  String
+  dayOfWeek   DayOfWeek
+  startTime   String    // "09:00" formato HH:mm
+  endTime     String    // "17:00" formato HH:mm
+  isWorkDay   Boolean   @default(true)
+  
+  @@unique([scheduleId, dayOfWeek])
+}
+
+model Attendance {
+  id            String           @id @default(cuid())
+  user          User             @relation(fields: [userId], references: [id])
+  userId        String
+  date          DateTime         // Solo la fecha (sin hora)
+  checkIn       DateTime?        // Fecha+hora de entrada
+  checkOut      DateTime?        // Fecha+hora de salida
+  status        AttendanceStatus @default(PRESENT)
+  totalHours    Float?           // Calculado al hacer checkout
+  lateMinutes   Int              @default(0) // Minutos de tardanza
+  notes         String?
+  isManualEdit  Boolean          @default(false) // Si admin lo editó
+  editedBy      String?          // userId del admin que editó
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId])
+}
+
+model Holiday {
+  id          String    @id @default(cuid())
+  name        String
+  date        DateTime
+  isNational  Boolean   @default(true) // Nacional vs empresarial
+  isRecurring Boolean   @default(false) // Si se repite cada año
+  country     String    @default("ES")
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Permission {
+  id            String         @id @default(cuid())
+  user          User           @relation(fields: [userId], references: [id])
+  userId        String
+  type          PermissionType
+  startDate     DateTime
+  endDate       DateTime
+  reason        String
+  status        RequestStatus  @default(PENDING)
+  approvedBy    User?          @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectionNote String?
+  documentUrl   String?        // Para adjuntar justificante
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Vacation {
+  id            String        @id @default(cuid())
+  user          User          @relation(fields: [userId], references: [id])
+  userId        String
+  startDate     DateTime
+  endDate       DateTime
+  totalDays     Int           // Días laborables calculados
+  status        RequestStatus @default(PENDING)
+  approvedBy    User?         @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectionNote String?
+  notes         String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Payroll {
+  id              String    @id @default(cuid())
+  user            User      @relation(fields: [userId], references: [id])
+  userId          String
+  period          String    // "2024-01" formato YYYY-MM
+  baseSalary      Float
+  workedDays      Int
+  totalDays       Int       // Días laborables del mes
+  absentDays      Int       @default(0)
+  latePenalty     Float     @default(0)
+  bonus           Float     @default(0)
+  deductions      Float     @default(0)
+  grossSalary     Float
+  netSalary       Float
+  hoursWorked     Float
+  status          String    @default("DRAFT") // DRAFT, GENERATED, PAID
+  notes           String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, period])
+}
+```
+
+---
+
+## MÓDULOS A IMPLEMENTAR — DETALLE COMPLETO
+
+### 1. AUTENTICACIÓN (NextAuth.js v5)
+
+**REGLA FUNDAMENTAL: No existe registro público en ningún punto de la aplicación. Solo los usuarios con rol ADMIN o SUPER_ADMIN pueden crear nuevas cuentas desde el panel de administración de empleados. Los trabajadores reciben sus credenciales (email + contraseña inicial) directamente del administrador.**
+
+**Archivo:** `auth.ts` en la raíz
+
+- Provider: Credentials (email + password)
+- Password: bcrypt con 12 rounds
+- Session: JWT strategy
+- Incluir en el token JWT: `id`, `name`, `email`, `role`, `employeeId`, `dni`
+- Callbacks session y jwt para enriquecer el token
+- Páginas personalizadas: `/login`
+
+**Login page `/login`:**
+- Formulario centrado, minimalista
+- Logo/nombre del sistema en la parte superior
+- Campos: Email y Contraseña
+- Botón "Iniciar Sesión"
+- Mensaje de error visible si credenciales incorrectas
+- **Sin enlace de registro, sin "¿Olvidaste tu contraseña?", sin opción de crear cuenta**
+
+**Cambio de contraseña:**
+- Un empleado puede cambiar su propia contraseña desde su perfil (sección "Seguridad")
+- Un admin puede resetear la contraseña de cualquier empleado desde el panel de gestión
+- El campo de nueva contraseña siempre requiere confirmación
+
+**Middleware `middleware.ts`:**
+- Proteger todas las rutas bajo `/(dashboard)/`
+- Redirigir a `/login` si no hay sesión
+- RBAC por ruta:
+  - `/employees/*` → solo ADMIN y SUPER_ADMIN
+  - `/schedules/*` → solo ADMIN y SUPER_ADMIN
+  - `/holidays/*` → solo ADMIN y SUPER_ADMIN
+  - `/reports/*` → ADMIN, SUPER_ADMIN, MANAGER
+  - `/payroll/*` → ADMIN, SUPER_ADMIN
+  - `/permissions/*` → todos (empleados ven solo las suyas)
+  - `/vacations/*` → todos (empleados ven solo las suyas)
+  - `/attendance/*` → todos (empleados ven solo las suyas)
+  - `/attendance/mark` → todos los empleados
+
+---
+
+### 2. LAYOUT PRINCIPAL
+
+**Sidebar (desktop):**
+- Ancho: 240px, fijo
+- Logo/nombre del sistema arriba
+- Navegación por secciones (agrupar items relacionados)
+- Indicador visual del item activo
+- Sección inferior: nombre del usuario logado + rol + botón logout
+- Items del menú según rol (EMPLOYEE ve menos opciones)
+
+**Menú completo (ADMIN/SUPER_ADMIN):**
+```
+─ Dashboard
+─ Empleados
+─ Asistencia
+  ─ Registros
+  ─ Marcar Entrada/Salida
+─ Horarios
+─ Festivos
+─ Solicitudes
+  ─ Permisos
+  ─ Vacaciones
+─ Nóminas
+─ Reportes
+```
+
+**Menú EMPLOYEE:**
+```
+─ Mi Asistencia
+─ Marcar Entrada/Salida
+─ Mis Permisos
+─ Mis Vacaciones
+```
+
+**Header (top bar):**
+- Título de la página actual
+- Fecha y hora actual (actualizar cada minuto)
+- Avatar/nombre del usuario logado
+- Botón hamburguesa en mobile
+
+**Mobile:** Drawer lateral (shadcn Sheet component)
+
+---
+
+### 3. DASHBOARD
+
+**KPIs en tarjetas (fila superior):**
+- Total empleados activos
+- Empleados presentes hoy
+- Empleados ausentes hoy
+- Tardanzas del día
+
+**Tabla de asistencia de hoy:**
+- Columnas: Empleado | ID | Entrada | Salida | Estado | Horas
+- Ordenada por estado (presentes primero)
+- Badge de color por estado (verde=presente, rojo=ausente, amarillo=tarde)
+
+**Gráfica de asistencia semanal** (Recharts BarChart):
+- Eje X: días de la semana
+- Eje Y: número de empleados
+- Barras: Presentes / Ausentes / Tardanzas
+- Simple, sin decoración excesiva
+
+**Próximos festivos** (lista simple, 3 siguientes)
+
+**Solicitudes pendientes de aprobación** (solo para ADMIN/MANAGER):
+- Lista compacta de permisos y vacaciones pendientes
+- Botón de acceso rápido a aprobar/rechazar
+
+---
+
+### 4. GESTIÓN DE EMPLEADOS
+
+**Lista `/employees`:**
+- Tabla con: Foto avatar (inicial si no hay) | ID empleado | Nombre | Departamento | Cargo | Rol | Estado | Acciones
+- Filtros: por departamento, por rol, por estado (activo/inactivo)
+- Búsqueda por nombre o ID
+- Paginación (20 por página)
+- Botón "Nuevo Empleado" (solo ADMIN+)
+
+**Formulario nuevo/editar empleado `/employees/new` y `/employees/[id]`:**
+```
+Sección: Información personal
+- Nombre completo *
+- DNI/NIE * (validar formato: 8 dígitos + letra para DNI, X/Y/Z + 7 dígitos + letra para NIE)
+- Email * (será el login del empleado)
+- Contraseña inicial * (solo en creación — el admin la establece, el empleado puede cambiarla después)
+- Teléfono
+- Avatar URL (opcional)
+
+Sección: Información laboral
+- ID Empleado * (auto-generado EMP-XXX pero editable por admin)
+- Departamento *
+- Cargo/Puesto *
+- Rol * (select: EMPLOYEE, MANAGER, ADMIN)
+- Fecha de inicio *
+- Horario asignado (select de horarios disponibles)
+- Salario base *
+
+Sección: Vacaciones
+- Días de vacaciones disponibles (default: 22)
+```
+
+**Nota importante sobre creación de usuarios:**
+- Solo ADMIN y SUPER_ADMIN acceden a esta pantalla
+- Al crear un empleado, el sistema hashea la contraseña con bcrypt antes de guardar
+- Se muestra un resumen final con las credenciales creadas (email + contraseña en texto plano solo en ese momento, nunca después)
+- El admin debe comunicar las credenciales al empleado de forma segura
+
+**Vista detalle empleado `/employees/[id]`:**
+- Datos del empleado
+- Resumen de asistencia del mes actual
+- Historial de permisos recientes
+- Historial de vacaciones
+- Botón editar
+- Botón desactivar/activar
+
+---
+
+### 5. SISTEMA DE MARCACIÓN DE ASISTENCIA
+
+**Vista empleado — Marcar entrada/salida `/attendance/mark`:**
+- Tarjeta grande centrada en pantalla
+- Mostrar: nombre del empleado, ID, hora actual en tiempo real
+- Estado actual: "Sin registrar", "Entrada registrada", "Jornada completa"
+- Botón grande "REGISTRAR ENTRADA" (verde) o "REGISTRAR SALIDA" (naranja)
+- Al registrar: confirmación visual inmediata + timestamp
+- Mostrar horas trabajadas si ya hay entrada
+
+**Lógica de marcación (API `/api/attendance/mark`):**
+```typescript
+// POST /api/attendance/mark
+// - Obtener userId del JWT
+// - Verificar que no haya ya una entrada+salida para hoy
+// - Si no hay registro hoy → crear con checkIn = now()
+// - Si hay checkIn pero no checkOut → actualizar checkOut = now()
+// - Calcular totalHours = (checkOut - checkIn) en horas
+// - Calcular lateMinutes comparando checkIn con horario asignado
+// - Determinar status: PRESENT, LATE (si lateMinutes > 15)
+// - Si es festivo → status = HOLIDAY
+// - Si el día no es laborable → error "No es día laborable"
+```
+
+**Vista admin — Todos los registros `/attendance`:**
+- Filtros: por empleado, por fecha (rango), por estado
+- Tabla: Empleado | Fecha | Entrada | Salida | Horas | Tardanza | Estado | Acciones
+- Botón "Editar" por fila (admin puede corregir marcaciones)
+- Modal de edición: cambiar hora entrada, hora salida, notas
+- Exportar a CSV
+
+**Edición manual por admin:**
+- Modal con campos: Hora entrada, Hora salida, Estado, Notas
+- Marcar `isManualEdit = true` y guardar `editedBy`
+- Mostrar indicador visual en la tabla de que fue editado manualmente
+
+---
+
+### 6. HORARIOS Y TURNOS
+
+**Lista de horarios `/schedules`:**
+- Tabla: Nombre | Descripción | Días laborables | Empleados asignados | Acciones
+- Botón "Nuevo Horario"
+
+**Crear/editar horario:**
+- Nombre del horario
+- Para cada día de la semana: toggle isWorkDay + hora inicio + hora fin
+- Preview visual de la semana configurada
+- Lista de empleados asignados a este horario
+
+**Ejemplo de horarios a crear en seed:**
+```
+Turno General: Lun-Vie 09:00-17:00
+Turno Mañana: Lun-Vie 07:00-15:00
+Turno Tarde: Lun-Vie 15:00-23:00
+Turno Partido: Lun-Vie 09:00-13:00 y 15:00-19:00 (simplificar a un turno)
+```
+
+---
+
+### 7. FESTIVOS
+
+**Lista de festivos `/holidays`:**
+- Tabla: Nombre | Fecha | Tipo (Nacional/Empresarial) | País | Recurrente | Acciones
+- Filtrar por año (mostrar año actual por defecto)
+- Botón "Añadir Festivo"
+
+**Formulario festivo:**
+- Nombre del festivo
+- Fecha
+- Tipo: Nacional / Empresarial
+- País (por defecto ES)
+- ¿Recurrente cada año? (checkbox)
+
+**Seed con festivos nacionales de España 2024 y 2025** (incluir los principales)
+
+---
+
+### 8. PERMISOS
+
+**Lista de permisos `/permissions`:**
+- ADMIN/MANAGER ven todas las solicitudes
+- EMPLOYEE ve solo las suyas
+- Tabs: "Pendientes" | "Aprobados" | "Rechazados" | "Todos"
+- Tabla: Empleado | Tipo | Período | Motivo | Estado | Acciones
+- Badges de color por estado
+
+**Nueva solicitud de permiso `/permissions/new`:**
+- Tipo de permiso (select: Médico, Personal, Familiar, Otro)
+- Fecha inicio y fecha fin
+- Motivo (textarea)
+- Nota: Solo días laborables cuentan
+- Botón enviar → status PENDING
+
+**Aprobación (ADMIN/MANAGER):**
+- Botón "Aprobar" → status APPROVED, registrar approvedBy y approvedAt
+- Botón "Rechazar" → modal pidiendo nota de rechazo → status REJECTED
+
+**Al aprobar un permiso:**
+- Crear/actualizar registros de Attendance para los días del permiso con status ON_LEAVE
+
+---
+
+### 9. VACACIONES
+
+**Funcionamiento igual que Permisos pero con:**
+- Cálculo automático de días laborables (excluyendo fines de semana y festivos)
+- Mostrar los días de vacaciones disponibles del empleado
+- Validar que no exceda los días disponibles
+- Al aprobar: descontar días de `user.vacationDays`
+- Al rechazar: no descontar
+- Vista de calendario de vacaciones del equipo (opcional, como tabla de disponibilidad mensual)
+
+---
+
+### 10. NÓMINAS (VISUAL)
+
+**Vista de nóminas `/payroll`:**
+- Selector de período (mes/año)
+- Botón "Calcular Nóminas del Mes" (genera para todos los empleados activos)
+- Tabla: Empleado | Días trabajados | Horas | Ausentismo | Sueldo base | Neto | Estado | Acciones
+
+**Cálculo automático al pulsar "Calcular":**
+```typescript
+// Para cada empleado activo:
+// 1. Contar días laborables del período
+// 2. Contar días de asistencia PRESENT + LATE + HALF_DAY
+// 3. Contar ausentismo (ABSENT)
+// 4. Sumar horas totales trabajadas
+// 5. Calcular tardanza acumulada (si >30 min/día, penalizar)
+// 6. grossSalary = baseSalary (simplificado)
+// 7. deductions = penalizaciones por ausencias no justificadas
+// 8. netSalary = grossSalary - deductions
+```
+
+**Vista detalle de nómina por empleado:**
+- Modal o página: desglose completo del período
+- Tabla de días trabajados
+- Resumen de ausencias y permisos
+- Cálculo final con todas las partidas
+
+**Exportar nómina:**
+- Botón "Exportar PDF" usando @react-pdf/renderer
+- Documento PDF profesional con membrete, datos del empleado y desglose
+
+---
+
+### 11. REPORTES
+
+**Página de reportes `/reports`:**
+
+**Reporte de asistencia mensual:**
+- Selector de mes y empleado (o "Todos")
+- Tabla resumen: Por empleado → días presentes, ausentes, tardanzas, horas totales
+- Exportar a CSV
+
+**Reporte de horas por empleado:**
+- Gráfica de barras (Recharts) de horas trabajadas por semana
+- Tabla de detalle por día
+
+**Reporte de ausentismo:**
+- Top empleados con más ausencias en el período
+- Distribución por tipo (médico, personal, etc.)
+
+**Todos los reportes tienen:**
+- Filtros de fecha (desde/hasta)
+- Botón exportar CSV
+- Tabla responsiva con scroll horizontal en mobile
+
+---
+
+## SEED DE DATOS INICIALES (`prisma/seed.ts`)
+
+Crear los siguientes datos de prueba:
+
+**Usuarios:**
+```
+SUPER_ADMIN:
+- Email: admin@empresa.com
+- Password: Admin1234!
+- Nombre: Admin Sistema
+- ID: EMP-001
+- DNI: 00000001A
+
+ADMIN:
+- Email: rrhh@empresa.com
+- Password: Rrhh1234!
+- Nombre: María García
+- ID: EMP-002
+- DNI: 12345678B
+- Dept: Recursos Humanos
+
+MANAGER:
+- Email: manager@empresa.com
+- Password: Manager1234!
+- Nombre: Carlos López
+- ID: EMP-003
+- DNI: 23456789C
+- Dept: Operaciones
+
+EMPLOYEES (5):
+- juan.perez@empresa.com / Empleado1!  - Juan Pérez  - EMP-004 - DNI: 34567890D - Operaciones
+- ana.martin@empresa.com / Empleado1!  - Ana Martín  - EMP-005 - DNI: 45678901E - Operaciones
+- luis.gomez@empresa.com / Empleado1!  - Luis Gómez  - EMP-006 - DNI: 56789012F - Administración
+- sara.ruiz@empresa.com / Empleado1!   - Sara Ruiz   - EMP-007 - DNI: 67890123G - Administración
+- pedro.diaz@empresa.com / Empleado1!  - Pedro Díaz  - EMP-008 - DNI: 78901234H - Operaciones
+```
+
+**Horarios:**
+- "Turno General": Lun-Vie 09:00-17:00
+- "Turno Mañana": Lun-Vie 07:00-15:00
+
+**Asignar horario "Turno General" a todos excepto a Pedro (Turno Mañana)**
+
+**Festivos de España 2024 y 2025** (al menos 10 nacionales)
+
+**Asistencia de los últimos 30 días** (generar datos realistas):
+- ~85% de días con asistencia normal
+- ~5% de tardanzas (10-20 minutos)
+- ~5% ausencias
+- ~5% permisos
+
+---
+
+## VARIABLES DE ENTORNO (`.env.local`)
+
+```env
+# Supabase — connection pooler (puerto 6543) para runtime/Vercel
+DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-eu-west-3.pooler.supabase.com:6543/postgres?pgbouncer=true"
+
+# Supabase — direct connection (puerto 5432) solo para migraciones Prisma
+DIRECT_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-eu-west-3.pooler.supabase.com:5432/postgres"
+
+# NextAuth
+NEXTAUTH_SECRET="genera-con: openssl rand -base64 32"
+NEXTAUTH_URL="http://localhost:3000"   # En Vercel se sobreescribe automáticamente
+```
+
+**Cómo obtener las URLs de Supabase:**
+1. Crear proyecto en supabase.com
+2. Ir a Project Settings → Database → Connection string
+3. Seleccionar "Transaction" para `DATABASE_URL` (puerto 6543, pgbouncer=true)
+4. Seleccionar "Direct connection" para `DIRECT_URL` (puerto 5432)
+5. Reemplazar `[YOUR-PASSWORD]` por la contraseña del proyecto
+
+---
+
+## DESPLIEGUE — VERCEL + SUPABASE
+
+### Supabase (base de datos)
+No se necesita ningún archivo de configuración local. La base de datos vive en la nube desde el inicio.
+
+### Vercel (aplicación)
+Crear archivo `vercel.json` en la raíz:
+```json
+{
+  "buildCommand": "prisma generate && next build",
+  "installCommand": "npm install"
+}
+```
+
+El comando `prisma generate` debe ejecutarse siempre antes del build en Vercel para que el cliente Prisma esté disponible.
+
+### Variables de entorno en Vercel
+En el dashboard de Vercel → Settings → Environment Variables, añadir:
+```
+DATABASE_URL        → URL del connection pooler de Supabase (puerto 6543)
+DIRECT_URL          → URL de conexión directa de Supabase (puerto 5432)
+NEXTAUTH_SECRET     → Clave secreta (openssl rand -base64 32)
+NEXTAUTH_URL        → https://tu-dominio.vercel.app  (o dominio personalizado)
+```
+
+**Importante:** `NEXTAUTH_URL` en Vercel debe ser la URL de producción exacta, incluyendo `https://`.
+
+### Prisma con Supabase — configuración crítica
+```prisma
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")    // pooler — usado en runtime y Vercel
+  directUrl = env("DIRECT_URL")      // direct — usado solo por prisma migrate
+}
+```
+
+El `directUrl` es imprescindible porque Supabase PgBouncer (pooler) no soporta las transacciones que usa `prisma migrate`. Las migraciones siempre usan la conexión directa.
+
+---
+
+## PACKAGE.JSON — SCRIPTS REQUERIDOS
+
+```json
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:prod": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "setup": "npm run db:migrate && npm run db:seed"
+  }
+}
+```
+
+El script `postinstall` ejecuta `prisma generate` automáticamente al hacer `npm install`, lo cual es necesario para que Vercel genere el cliente Prisma correctamente en cada despliegue.
+
+---
+
+## README.md — INSTRUCCIONES DE INSTALACIÓN
+
+El README debe incluir:
+```
+## Requisitos
+- Node.js 18+
+- Cuenta en Supabase (supabase.com) — gratuita
+- Cuenta en Vercel (vercel.com) — gratuita
+
+## Configuración de Supabase
+1. Crear un nuevo proyecto en supabase.com
+2. Ir a Project Settings → Database → Connection string
+3. Copiar la URL "Transaction" (pooler, puerto 6543) → DATABASE_URL
+4. Copiar la URL "Direct connection" (puerto 5432) → DIRECT_URL
+
+## Instalación local
+1. git clone [repositorio]
+2. npm install
+3. cp .env.example .env.local
+4. Rellenar .env.local con las URLs de Supabase y el NEXTAUTH_SECRET
+5. npm run setup    ← Migra la base de datos y carga datos de prueba
+6. npm run dev
+7. Abrir http://localhost:3000
+
+## Despliegue en Vercel
+1. Conectar el repositorio de GitHub a Vercel
+2. En Vercel → Settings → Environment Variables, añadir:
+   DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET, NEXTAUTH_URL
+3. Vercel despliega automáticamente en cada push a main
+4. Ejecutar el seed una sola vez desde local apuntando a Supabase:
+   npm run db:seed
+
+## Credenciales de acceso (datos de prueba)
+| Rol         | Email                   | Contraseña   | DNI        |
+|-------------|-------------------------|--------------|------------|
+| Super Admin | admin@empresa.com       | Admin1234!   | 00000001A  |
+| RRHH Admin  | rrhh@empresa.com        | Rrhh1234!    | 12345678B  |
+| Manager     | manager@empresa.com     | Manager1234! | 23456789C  |
+| Empleado    | juan.perez@empresa.com  | Empleado1!   | 34567890D  |
+
+⚠ El login solo funciona con email + contraseña.
+⚠ No existe ninguna página de registro. Solo el Admin crea nuevos usuarios.
+```
+
+---
+
+## DETALLES DE IMPLEMENTACIÓN — REGLAS CRÍTICAS
+
+### Seguridad
+- NUNCA devolver el campo `password` en ninguna respuesta de API
+- Validar con Zod en cada endpoint de API
+- Verificar el rol del usuario en cada endpoint sensible usando `getServerSession()`
+- Los empleados solo pueden ver/modificar sus propios datos
+- Los managers pueden ver datos de su departamento
+- Los admins tienen acceso total
+
+### Manejo de fechas
+- Usar UTC internamente en la base de datos
+- Mostrar en la UI en zona horaria local del servidor (España: Europe/Madrid)
+- La fecha de un registro de asistencia (`date`) debe almacenarse sin hora: `new Date(year, month, day)`
+- Para comparar si ya hay marcación hoy, comparar solo la parte de fecha
+
+### Cálculo de horas trabajadas
+```typescript
+// Al hacer checkout:
+const totalHours = (checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60)
+// Redondear a 2 decimales
+```
+
+### Cálculo de tardanza
+```typescript
+// Comparar checkIn con el horario del día
+// Si checkIn > horario.startTime + 15 minutos → es tardanza
+// lateMinutes = diferencia en minutos entre checkIn y startTime
+```
+
+### Estados de asistencia
+```
+PRESENT: Llegó dentro de los 15 minutos de gracia
+LATE: Llegó más de 15 minutos tarde
+HALF_DAY: Trabajó menos de la mitad de su jornada
+ABSENT: No registró entrada
+HOLIDAY: Día festivo
+ON_LEAVE: Permiso o vacaciones aprobados
+```
+
+### Paginación estándar
+- Todos los listados: 20 ítems por página
+- Query params: `?page=1&limit=20&search=...`
+- Response format: `{ data: [], total: number, page: number, totalPages: number }`
+
+---
+
+## ORDEN DE IMPLEMENTACIÓN (fase por fase)
+
+**Ejecutar en este orden exacto:**
+
+1. **Setup inicial:**
+   - Inicializar Next.js 14 con TypeScript y Tailwind
+   - Instalar todas las dependencias
+   - Crear `vercel.json`
+   - Configurar Prisma schema completo (con `url` y `directUrl` para Supabase)
+   - Crear `.env.local` y `.env.example`
+
+2. **Base de datos:**
+   - Verificar conexión a Supabase con `npx prisma db pull` o simplemente con `npm run db:migrate`
+   - `npm run db:migrate` (aplica el schema a Supabase)
+   - Crear seed completo con todos los datos de prueba
+   - `npm run db:seed`
+
+3. **Autenticación:**
+   - Configurar NextAuth.js completo
+   - Login page
+   - Middleware de protección de rutas
+   - Probar que el login funciona antes de continuar
+
+4. **Layout base:**
+   - Sidebar con navegación por rol
+   - Header
+   - Mobile responsive drawer
+   - Layout de dashboard con los componentes compartidos
+
+5. **Dashboard:**
+   - KPIs con datos reales
+   - Tabla de asistencia de hoy
+   - Gráfica semanal
+
+6. **Módulo empleados:**
+   - CRUD completo
+   - Vista detalle
+
+7. **Módulo marcación:**
+   - Vista marcar entrada/salida (empleado)
+   - Vista admin de todos los registros
+   - Lógica de cálculo de horas y tardanza
+
+8. **Horarios y festivos:**
+   - CRUD de horarios con configuración por día
+   - CRUD de festivos
+
+9. **Permisos y vacaciones:**
+   - Flujo de solicitud → aprobación/rechazo
+   - Integración con asistencia
+
+10. **Nóminas:**
+    - Vista visual con cálculo
+    - Export PDF
+
+11. **Reportes:**
+    - Reportes con exportación CSV
+
+12. **Pulir y verificar:**
+    - Responsive en mobile
+    - Mensajes de error claros
+    - Loading states en todas las operaciones
+    - Toasts de confirmación (shadcn Sonner)
+    - Verificar que el seed funciona limpio
+
+---
+
+## REQUERIMIENTOS DE UX OBLIGATORIOS
+
+- **Loading states:** Usar skeleton loaders o spinners en todas las peticiones
+- **Error handling:** Toast de error visible si falla cualquier operación
+- **Confirmación:** Dialog de confirmación antes de eliminar cualquier elemento
+- **Feedback:** Toast de éxito tras cada acción exitosa (crear, editar, aprobar, etc.)
+- **Empty states:** Mensaje claro cuando una lista está vacía ("No hay empleados registrados")
+- **Formularios:** Validación inline con mensajes de error por campo
+- **Tablas:** Scroll horizontal en mobile, no recortar contenido
+
+---
+
+## RESTRICCIONES FINALES
+
+- **NO** usar `any` en TypeScript. Tipar todo correctamente.
+- **NO** hacer fetch directamente desde componentes cliente cuando sea posible (usar Server Components de Next.js)
+- **NO** dejar console.logs en producción
+- **NO** hardcodear URLs. Usar variables de entorno.
+- **SÍ** usar transacciones de Prisma cuando se modifiquen múltiples tablas a la vez
+- **SÍ** implementar rate limiting básico en el endpoint de login (máx 5 intentos)
+- **SÍ** sanitizar todos los inputs de usuario
+
+---
+
+## VERIFICACIÓN FINAL
+
+Antes de terminar, verifica que:
+- [ ] `npm run setup` (migrate + seed) funciona apuntando a Supabase
+- [ ] Se puede hacer login con todos los usuarios del seed
+- [ ] Un empleado puede marcar entrada y salida
+- [ ] Un admin puede crear un nuevo empleado con DNI, email y contraseña inicial
+- [ ] No existe ninguna ruta ni enlace de registro público en toda la app
+- [ ] El campo DNI valida el formato correcto (DNI español o NIE)
+- [ ] Un empleado puede solicitar un permiso
+- [ ] Un admin/manager puede aprobar/rechazar la solicitud
+- [ ] Las nóminas se calculan correctamente para el mes actual
+- [ ] Los reportes muestran datos reales
+- [ ] La aplicación funciona en mobile (375px de ancho)
+- [ ] `npm run build` completa sin errores (listo para Vercel)
+- [ ] No hay errores en la consola del navegador ni en la consola del servidor
+
+---
+
+*Sistema de Control de Asistencia Laboral v1.1 — Stack: Next.js 14 + Supabase + Vercel — Prompt generado para Claude Code*

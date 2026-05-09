@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  HOLIDAY
+  ON_LEAVE
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PermissionType {
+  MEDICAL
+  PERSONAL
+  FAMILY
+  OTHER
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model User {
+  id            String    @id @default(cuid())
+  employeeId    String    @unique
+  dni           String    @unique
+  name          String
+  email         String    @unique
+  password      String
+  role          Role      @default(EMPLOYEE)
+  department    String?
+  position      String?
+  phone         String?
+  startDate     DateTime  @default(now())
+  isActive      Boolean   @default(true)
+  avatarUrl     String?
+  baseSalary    Float     @default(0)
+  vacationDays  Int       @default(22)
+
+  schedule      Schedule? @relation(fields: [scheduleId], references: [id])
+  scheduleId    String?
+
+  attendances   Attendance[]
+  permissions   Permission[]
+  vacations     Vacation[]
+  payrolls      Payroll[]
+
+  approvedPermissions Permission[] @relation("ApprovedBy")
+  approvedVacations   Vacation[]   @relation("ApprovedBy")
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Schedule {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  workDays    WorkDay[]
+  users       User[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model WorkDay {
+  id          String    @id @default(cuid())
+  schedule    Schedule  @relation(fields: [scheduleId], references: [id])
+  scheduleId  String
+  dayOfWeek   DayOfWeek
+  startTime   String
+  endTime     String
+  isWorkDay   Boolean   @default(true)
+
+  @@unique([scheduleId, dayOfWeek])
+}
+
+model Attendance {
+  id            String           @id @default(cuid())
+  user          User             @relation(fields: [userId], references: [id])
+  userId        String
+  date          DateTime
+  checkIn       DateTime?
+  checkOut      DateTime?
+  status        AttendanceStatus @default(PRESENT)
+  totalHours    Float?
+  lateMinutes   Int              @default(0)
+  notes         String?
+  isManualEdit  Boolean          @default(false)
+  editedBy      String?
+
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId])
+}
+
+model Holiday {
+  id          String    @id @default(cuid())
+  name        String
+  date        DateTime
+  isNational  Boolean   @default(true)
+  isRecurring Boolean   @default(false)
+  country     String    @default("ES")
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Permission {
+  id            String         @id @default(cuid())
+  user          User           @relation(fields: [userId], references: [id])
+  userId        String
+  type          PermissionType
+  startDate     DateTime
+  endDate       DateTime
+  reason        String
+  status        RequestStatus  @default(PENDING)
+  approvedBy    User?          @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectionNote String?
+  documentUrl   String?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Vacation {
+  id            String        @id @default(cuid())
+  user          User          @relation(fields: [userId], references: [id])
+  userId        String
+  startDate     DateTime
+  endDate       DateTime
+  totalDays     Int
+  status        RequestStatus @default(PENDING)
+  approvedBy    User?         @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedById  String?
+  approvedAt    DateTime?
+  rejectionNote String?
+  notes         String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Payroll {
+  id              String    @id @default(cuid())
+  user            User      @relation(fields: [userId], references: [id])
+  userId          String
+  period          String
+  baseSalary      Float
+  workedDays      Int
+  totalDays       Int
+  absentDays      Int       @default(0)
+  latePenalty     Float     @default(0)
+  bonus           Float     @default(0)
+  deductions      Float     @default(0)
+  grossSalary     Float
+  netSalary       Float
+  hoursWorked     Float
+  status          String    @default("DRAFT")
+  notes           String?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, period])
+}
