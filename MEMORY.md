@@ -86,6 +86,13 @@ Avance actual:
   - `GET /api/employees?limit=2` autenticado como admin devuelve datos paginados sin `password`.
   - `GET /api/employees` autenticado como `juan.perez@empresa.com` devuelve 403.
   - No se creo empleado de prueba para no ensuciar la base real durante la verificacion.
+- Despliegue Vercel iniciado por el usuario:
+  - El usuario conecto el proyecto a Vercel y la pagina de login carga en produccion.
+  - Al enviar credenciales aparece `Server error - There is a problem with the server configuration`.
+  - Diagnostico probable: variables de entorno de produccion o conexion Supabase durante callback Credentials.
+  - Se reforzo `auth.config.ts` con `secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET`.
+  - Se actualizo `.env.example` y `README.md` para pedir `AUTH_SECRET`, `AUTH_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `DATABASE_URL` y `DIRECT_URL` en Vercel.
+  - Siguiente comprobacion necesaria en Vercel: revisar deployment logs del intento de login para confirmar si el error es `MissingSecret`, `CallbackRouteError`, `PrismaClientInitializationError` o URL/cookie.
 
 ## Fuente maestra
 
@@ -216,7 +223,7 @@ Crear estas cuentas en `prisma/seed.ts`:
 
 ## Proxima accion sugerida
 
-Continuar con Fase 6: verificar creacion real de empleado con un caso controlado o de negocio, implementar cambio de password propio desde perfil/seguridad y cerrar la verificacion final de empleados.
+Primero resolver bloqueo de Vercel/Auth.js en produccion revisando variables y logs del deployment. Luego continuar con Fase 6: verificar creacion real de empleado con un caso controlado o de negocio, implementar cambio de password propio desde perfil/seguridad y cerrar la verificacion final de empleados.
 
 ## Estado de continuidad
 

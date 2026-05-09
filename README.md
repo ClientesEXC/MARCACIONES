@@ -35,6 +35,8 @@ Nota: Next.js usa `.env.local` durante el desarrollo. Prisma CLI v5 carga `.env`
 ```env
 DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true"
 DIRECT_URL="postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres"
+AUTH_SECRET="replace-with-openssl-rand-base64-32"
+AUTH_URL="http://localhost:3000"
 NEXTAUTH_SECRET="replace-with-openssl-rand-base64-32"
 NEXTAUTH_URL="http://localhost:3000"
 ```
@@ -48,13 +50,27 @@ DIRECT_URL="postgresql://postgres.[PROJECT-REF]:[PASSWORD]@aws-0-[REGION].pooler
 ## Despliegue en Vercel
 
 1. Conectar el repositorio a Vercel.
-2. En Settings -> Environment Variables, anadir `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET` y `NEXTAUTH_URL`.
+2. En Settings -> Environment Variables, anadir:
+   - `DATABASE_URL`: Supabase transaction pooler, puerto 6543, con `?pgbouncer=true`.
+   - `DIRECT_URL`: Supabase direct connection o pooler session mode para migraciones.
+   - `AUTH_SECRET`: secreto seguro generado con `openssl rand -base64 32`.
+   - `AUTH_URL`: URL publica exacta de Vercel, por ejemplo `https://marcaciones.vercel.app`.
+   - `NEXTAUTH_SECRET`: mismo valor que `AUTH_SECRET`, por compatibilidad.
+   - `NEXTAUTH_URL`: mismo valor que `AUTH_URL`, por compatibilidad.
 3. Vercel ejecutara `prisma generate && next build`.
 4. Ejecutar el seed una sola vez desde local apuntando a Supabase:
 
 ```bash
 npm run db:seed
 ```
+
+Si el login muestra `Server error - There is a problem with the server configuration`,
+revisar los logs de Vercel en el deployment. Las causas mas comunes son:
+
+- Falta `AUTH_SECRET`/`NEXTAUTH_SECRET` en Production.
+- `AUTH_URL`/`NEXTAUTH_URL` no coincide exactamente con la URL publica `https://...` del deployment.
+- `DATABASE_URL` no apunta al pooler transaction de Supabase o la password no esta URL-encoded.
+- Las variables se agregaron en Vercel pero no se hizo redeploy.
 
 ## Credenciales seed
 
