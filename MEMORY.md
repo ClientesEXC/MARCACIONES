@@ -69,6 +69,23 @@ Avance actual:
   - `npm.cmd run lint` pasa.
   - `npm.cmd run build` pasa fuera del sandbox.
   - Login HTTP con `admin@empresa.com` y carga de `/dashboard` autenticado devuelve 200.
+- Fase 6 iniciada y avanzada:
+  - Validaciones Zod de empleados creadas en `src/lib/validations/employee.ts`.
+  - API `/api/employees` creada con `GET` paginado/filtrado y `POST` con bcrypt 12 rounds.
+  - API `/api/employees/[id]` creada con `GET` y `PATCH` para edicion, activar/desactivar y reset de password por admin.
+  - Todas las respuestas usan `employeeSelect` en `src/lib/employees.ts` y no devuelven `password`.
+  - Lista real `/employees` creada con busqueda, filtros por rol/departamento/estado y paginacion.
+  - Formulario reutilizable `EmployeeForm` creado para alta y edicion.
+  - `/employees/new` crea empleados y muestra credenciales iniciales solo en la respuesta de creacion.
+  - `/employees/[id]` permite editar detalle, estado y resetear password.
+- Verificacion posterior al avance de Fase 6:
+  - `npx.cmd tsc --noEmit` pasa.
+  - `npm.cmd run lint` pasa.
+  - `npm.cmd run build` pasa fuera del sandbox.
+  - `GET /employees` autenticado como `admin@empresa.com` devuelve 200.
+  - `GET /api/employees?limit=2` autenticado como admin devuelve datos paginados sin `password`.
+  - `GET /api/employees` autenticado como `juan.perez@empresa.com` devuelve 403.
+  - No se creo empleado de prueba para no ensuciar la base real durante la verificacion.
 
 ## Fuente maestra
 
@@ -199,11 +216,11 @@ Crear estas cuentas en `prisma/seed.ts`:
 
 ## Proxima accion sugerida
 
-Continuar con Fase 6: modulo de empleados con API CRUD, validaciones Zod, lista paginada, creacion con password hasheada y gestion de detalle/estado.
+Continuar con Fase 6: verificar creacion real de empleado con un caso controlado o de negocio, implementar cambio de password propio desde perfil/seguridad y cerrar la verificacion final de empleados.
 
 ## Estado de continuidad
 
 - La sesion actual conserva suficiente contexto para continuar trabajando.
 - Aunque se compacte la conversacion, el estado importante esta persistido en `ROADMAP.md`, `MEMORY.md` y `C:\Users\user\.codex\memories\proy_marcaciones_handoff.md`.
 - No depender de recordar la password de Supabase desde la conversacion: esta solo en `.env` y `.env.local`, ambos ignorados por git.
-- Antes de seguir, asumir como punto de partida: Fases 1, 2, 3, 4 y 5 completadas; Fase 6 es la siguiente.
+- Antes de seguir, asumir como punto de partida: Fases 1, 2, 3, 4 y 5 completadas; Fase 6 esta avanzada pero pendiente de cambio de password propio y prueba real de creacion.

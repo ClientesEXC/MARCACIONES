@@ -113,20 +113,20 @@ Verificacion:
 
 ## Fase 6 - Empleados
 
-- [ ] API CRUD `/api/employees`.
-- [ ] Validaciones Zod para DNI/NIE espanol, email, password inicial y datos laborales.
-- [ ] Lista con busqueda, filtros y paginacion.
-- [ ] Crear empleado con password hasheada.
-- [ ] Mostrar credenciales iniciales solo al crear.
-- [ ] Detalle/edicion de empleado.
-- [ ] Activar/desactivar empleado.
-- [ ] Reset de password por admin.
+- [x] API CRUD `/api/employees`.
+- [x] Validaciones Zod para DNI/NIE espanol, email, password inicial y datos laborales.
+- [x] Lista con busqueda, filtros y paginacion.
+- [x] Crear empleado con password hasheada.
+- [x] Mostrar credenciales iniciales solo al crear.
+- [x] Detalle/edicion de empleado.
+- [x] Activar/desactivar empleado.
+- [x] Reset de password por admin.
 - [ ] Cambio de password propio desde perfil/seguridad.
 
 Verificacion:
 - [ ] ADMIN/SUPER_ADMIN pueden crear usuarios.
 - [ ] Password nunca se expone despues del resumen de creacion.
-- [ ] EMPLOYEE no puede leer otros empleados.
+- [x] EMPLOYEE no puede leer otros empleados.
 
 ## Fase 7 - Marcacion de asistencia
 
