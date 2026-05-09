@@ -92,7 +92,13 @@ Avance actual:
   - Diagnostico probable: variables de entorno de produccion o conexion Supabase durante callback Credentials.
   - Se reforzo `auth.config.ts` con `secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET`.
   - Se actualizo `.env.example` y `README.md` para pedir `AUTH_SECRET`, `AUTH_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `DATABASE_URL` y `DIRECT_URL` en Vercel.
-  - Siguiente comprobacion necesaria en Vercel: revisar deployment logs del intento de login para confirmar si el error es `MissingSecret`, `CallbackRouteError`, `PrismaClientInitializationError` o URL/cookie.
+  - Vercel CLI 53.2.0 quedo autenticado con usuario `clientes-1203`.
+  - Proyecto local enlazado a `detodoecs-projects/marcaciones`; `.vercel/` quedo ignorado por git.
+  - Variables Production cargadas desde `.env.local` sin imprimir secretos: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `NEXTAUTH_SECRET`, `AUTH_URL`, `NEXTAUTH_URL`.
+  - `AUTH_URL` y `NEXTAUTH_URL` se configuraron como `https://marcaciones-one.vercel.app`.
+  - Redeploy Production ejecutado correctamente. Deployment `dpl_9vQG8ZA96nBNbv4XoJH9U9aTxE6V`, alias `https://marcaciones-one.vercel.app`, estado `Ready`.
+  - Desde la terminal local no se pudo conectar por HTTPS al dominio de Vercel, aunque `vercel inspect` confirma el deployment Ready. Pedir al usuario probar en navegador.
+  - Si el login sigue fallando, revisar logs con `npx.cmd vercel@53.2.0 logs --environment production --level error --since 30m --expand`.
 
 ## Fuente maestra
 
@@ -223,7 +229,7 @@ Crear estas cuentas en `prisma/seed.ts`:
 
 ## Proxima accion sugerida
 
-Primero resolver bloqueo de Vercel/Auth.js en produccion revisando variables y logs del deployment. Luego continuar con Fase 6: verificar creacion real de empleado con un caso controlado o de negocio, implementar cambio de password propio desde perfil/seguridad y cerrar la verificacion final de empleados.
+Primero pedir al usuario que pruebe login en `https://marcaciones-one.vercel.app` tras el redeploy. Si falla, leer logs de Vercel con la CLI. Luego continuar con Fase 6: verificar creacion real de empleado con un caso controlado o de negocio, implementar cambio de password propio desde perfil/seguridad y cerrar la verificacion final de empleados.
 
 ## Estado de continuidad
 

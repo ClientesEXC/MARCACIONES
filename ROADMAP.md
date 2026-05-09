@@ -216,7 +216,7 @@ Verificacion:
 
 - Las credenciales reales de Supabase no estan disponibles en el repo. Las migraciones y seed dependeran de que el usuario las aporte en `.env.local`.
 - Prisma CLI v5 carga `.env` por defecto; por eso existe `.env` local ignorado por git ademas de `.env.local`.
-- Vercel carga la pagina de login, pero el callback de login muestra `Server error - There is a problem with the server configuration`. Revisar logs de Vercel y confirmar variables de Production: `AUTH_SECRET`, `AUTH_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `DATABASE_URL`, `DIRECT_URL`.
+- Vercel carga la pagina de login. Se configuraron variables Production y se redeployo `https://marcaciones-one.vercel.app` con estado Ready. Pendiente: confirmar login en navegador del usuario; si falla, revisar logs de Vercel.
 - `npm audit --omit=dev` mantiene avisos en Next 14 y PostCSS interno. npm propone Next 16, pero el stack fijado exige Next.js 14. Decision pendiente: aceptar riesgo temporal, revisar parche de Next 14 si aparece, o pedir autorizacion para subir de major en el futuro.
 - NextAuth v5 puede tener cambios de API segun la version disponible al instalar. Usar documentacion oficial si hay dudas.
 - El prompt exige Prisma conectado a Supabase pooler para runtime y direct connection para migraciones; configurar mal estas URLs rompera deploy o migrate.
