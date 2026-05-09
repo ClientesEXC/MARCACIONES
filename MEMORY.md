@@ -98,7 +98,8 @@ Avance actual:
   - `AUTH_URL` y `NEXTAUTH_URL` se configuraron como `https://marcaciones-one.vercel.app`.
   - Redeploy Production ejecutado correctamente. Deployment `dpl_9vQG8ZA96nBNbv4XoJH9U9aTxE6V`, alias `https://marcaciones-one.vercel.app`, estado `Ready`.
   - Desde la terminal local no se pudo conectar por HTTPS al dominio de Vercel, aunque `vercel inspect` confirma el deployment Ready. Pedir al usuario probar en navegador.
-  - Si el login sigue fallando, revisar logs con `npx.cmd vercel@53.2.0 logs --environment production --level error --since 30m --expand`.
+  - Usuario confirmo que `https://marcaciones-one.vercel.app/login` ya funciona correctamente en navegador tras el redeploy.
+  - Credenciales seed recordadas para pruebas: admin `admin@empresa.com / Admin1234!`; empleado `juan.perez@empresa.com / Empleado1!` y el resto de empleados seed usan `Empleado1!`.
 
 ## Fuente maestra
 
@@ -229,7 +230,7 @@ Crear estas cuentas en `prisma/seed.ts`:
 
 ## Proxima accion sugerida
 
-Primero pedir al usuario que pruebe login en `https://marcaciones-one.vercel.app` tras el redeploy. Si falla, leer logs de Vercel con la CLI. Luego continuar con Fase 6: verificar creacion real de empleado con un caso controlado o de negocio, implementar cambio de password propio desde perfil/seguridad y cerrar la verificacion final de empleados.
+Continuar con Fase 6: verificar creacion real de empleado con un caso controlado o de negocio, implementar cambio de password propio desde perfil/seguridad y cerrar la verificacion final de empleados.
 
 ## Estado de continuidad
 
